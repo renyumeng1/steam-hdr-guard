@@ -1,7 +1,5 @@
-using System.Windows;
-
 namespace SteamHdrGuard.Gui;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
 }
