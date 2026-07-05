@@ -10,6 +10,12 @@ public sealed class AppConfig
     public bool StartWithWindows { get; set; } = false;
     public bool StartMonitoringOnLaunch { get; set; } = true;
     public bool MinimizeToTrayOnClose { get; set; } = true;
+    public bool HdrToastEnabled { get; set; } = true;
+    public string HdrToastPosition { get; set; } = "top-center";
+    public string HdrToastPreset { get; set; } = "compact";
+    public string HdrOnToastText { get; set; } = "HDR ON";
+    public string HdrOffToastText { get; set; } = "HDR OFF";
+    public int HdrToastDurationMs { get; set; } = 1400;
     public List<GameEntry> Games { get; set; } = new();
 }
 
