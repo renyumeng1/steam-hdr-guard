@@ -9,18 +9,45 @@ Steam HDR Guard 是一个 Windows 小工具：自动扫描 Steam 已安装游戏
 - 自动扫描 Steam 已安装游戏
 - 支持多个 Steam Library
 - 维护本地游戏列表和 HDR 启用开关
+- GUI 端：
+  - 极简黑白灰界面，少量蓝色强调色
+  - 扫描游戏并勾选哪些游戏需要自动开 HDR
+  - 查看显示器 HDR / Advanced Color 状态
+  - 手动开启/关闭 HDR
+  - 配置“游戏退出后关闭 HDR 延迟”
+  - 配置“开机自启 GUI”
+  - 配置“关闭窗口时最小化到托盘”
+  - 托盘右键菜单支持打开、开始监控、停止监控、退出
+  - 自绘 HDR 图标，不使用外部图标资源
 - CLI 端：
   - 扫描游戏
   - 查看游戏列表
   - 启用/禁用某个游戏的自动 HDR
   - 查看/开启/关闭系统 HDR
   - 后台监控游戏进程
-- GUI 端：
-  - 扫描游戏
-  - 勾选哪些游戏需要自动开 HDR
-  - 查看显示器 HDR 支持状态
-  - 手动开启/关闭 HDR
-  - 启动/停止监控
+
+## 直接下载使用
+
+进入仓库的 Actions 页面，打开最新的 `Build Windows Package`，在页面底部 `Artifacts` 下载：
+
+```text
+steam-hdr-guard-win-x64
+```
+
+解压后直接运行：
+
+```text
+gui\SteamHdrGuard.Gui.exe
+```
+
+也可以使用 CLI：
+
+```powershell
+cli\steam-hdr-guard.exe scan
+cli\steam-hdr-guard.exe list
+cli\steam-hdr-guard.exe hdr status
+cli\steam-hdr-guard.exe watch
+```
 
 ## 技术方案
 
@@ -30,6 +57,7 @@ Steam HDR Guard 是一个 Windows 小工具：自动扫描 Steam 已安装游戏
 - GUI：WPF
 - HDR 控制：直接 P/Invoke `user32.dll` 的 DisplayConfig API
 - Steam 扫描：读取注册表、`libraryfolders.vdf`、`appmanifest_*.acf`
+- 开机自启：当前用户 `Run` 注册表项
 - 配置文件：`%APPDATA%\SteamHdrGuard\config.json`
 
 没有使用 Electron，因为 Electron 会带 Chromium 和 Node，体积更大。WPF 对这个工具来说更轻。
@@ -42,8 +70,11 @@ src/
   SteamHdrGuard.Cli/    命令行端
   SteamHdrGuard.Gui/    WPF 图形界面
 scripts/
+  publish.ps1
   install-startup-task.ps1
   remove-startup-task.ps1
+.github/workflows/
+  build-windows.yml
 ```
 
 ## 构建
@@ -54,6 +85,31 @@ scripts/
 dotnet build .\src\SteamHdrGuard.Cli\SteamHdrGuard.Cli.csproj -c Release
 dotnet build .\src\SteamHdrGuard.Gui\SteamHdrGuard.Gui.csproj -c Release
 ```
+
+## 发布 exe
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish.ps1
+```
+
+输出位置：
+
+```text
+src\SteamHdrGuard.Cli\bin\Release\net8.0-windows\win-x64\publish\
+src\SteamHdrGuard.Gui\bin\Release\net8.0-windows\win-x64\publish\
+```
+
+## GUI 使用
+
+1. 打开 `SteamHdrGuard.Gui.exe`。
+2. 点击“扫描 Steam 游戏”。
+3. 在游戏列表里勾选需要自动开启 HDR 的游戏。
+4. 在左侧设置游戏退出后关闭 HDR 的延迟秒数。
+5. 需要后台运行时，勾选“关闭窗口时最小化到托盘”。
+6. 需要开机自动运行时，勾选“开机自启 GUI”。
+7. 点击“开始监控”。
+
+如果启用了托盘模式，点窗口关闭按钮不会直接退出；程序会隐藏到托盘并继续监控。真正退出请右键托盘图标选择“退出”。
 
 ## CLI 使用
 
@@ -106,36 +162,17 @@ dotnet run --project .\src\SteamHdrGuard.Cli -- hdr off
 dotnet run --project .\src\SteamHdrGuard.Cli -- watch
 ```
 
-## 发布 exe
-
-CLI：
-
-```powershell
-dotnet publish .\src\SteamHdrGuard.Cli\SteamHdrGuard.Cli.csproj -c Release -r win-x64 --self-contained false
-```
-
-GUI：
-
-```powershell
-dotnet publish .\src\SteamHdrGuard.Gui\SteamHdrGuard.Gui.csproj -c Release -r win-x64 --self-contained false
-```
-
-输出位置：
-
-```text
-src\SteamHdrGuard.Cli\bin\Release\net8.0-windows\win-x64\publish\
-src\SteamHdrGuard.Gui\bin\Release\net8.0-windows\win-x64\publish\
-```
-
 ## 开机自启
 
-先发布 CLI，再按你的实际 exe 路径修改脚本参数，或在项目根目录运行：
+GUI 里可以直接勾选“开机自启 GUI”。它会写入当前用户的 Windows `Run` 注册表项，并在开机后以 `--start-minimized` 启动。
+
+也可以用脚本方式设置 CLI 开机监控：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install-startup-task.ps1
 ```
 
-删除开机自启：
+删除脚本创建的计划任务：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\remove-startup-task.ps1
