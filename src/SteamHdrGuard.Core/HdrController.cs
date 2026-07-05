@@ -14,10 +14,10 @@ public sealed class HdrController
         foreach (var p in paths)
         {
             var t = p.targetInfo;
-            if (!GetColor(t.adapterId, t.id, out var c)) continue;
+            if (!TryGetColor(t.adapterId, t.id, out var c)) continue;
             string name = $"Display {list.Count + 1}";
             string devicePath = "";
-            if (GetName(t.adapterId, t.id, out var n))
+            if (TryGetName(t.adapterId, t.id, out var n))
             {
                 if (!string.IsNullOrWhiteSpace(n.monitorFriendlyDeviceName)) name = n.monitorFriendlyDeviceName;
                 devicePath = n.monitorDevicePath ?? "";
@@ -48,12 +48,12 @@ public sealed class HdrController
         foreach (var p in QueryPaths())
         {
             var t = p.targetInfo;
-            if (!GetColor(t.adapterId, t.id, out var c)) continue;
+            if (!TryGetColor(t.adapterId, t.id, out var c)) continue;
             if ((c.value & 1) == 0 || (c.value & 8) != 0) continue;
 
-            var s = new SetColor
+            var s = new SetColorPacket
             {
-                header = MakeHeader(DeviceInfoType.SetAdvancedColorState, t.adapterId, t.id, Marshal.SizeOf<SetColor>()),
+                header = MakeHeader(DeviceInfoType.SetAdvancedColorState, t.adapterId, t.id, Marshal.SizeOf<SetColorPacket>()),
                 value = enabled ? 1u : 0u
             };
             if (DisplayConfigSetDeviceInfo(ref s) == Ok) changed++;
@@ -62,15 +62,15 @@ public sealed class HdrController
         return changed;
     }
 
-    private static bool GetColor(Luid adapter, uint id, out GetColor info)
+    private static bool TryGetColor(Luid adapter, uint id, out GetColorPacket info)
     {
-        info = new GetColor { header = MakeHeader(DeviceInfoType.GetAdvancedColorInfo, adapter, id, Marshal.SizeOf<GetColor>()) };
+        info = new GetColorPacket { header = MakeHeader(DeviceInfoType.GetAdvancedColorInfo, adapter, id, Marshal.SizeOf<GetColorPacket>()) };
         return DisplayConfigGetDeviceInfo(ref info) == Ok;
     }
 
-    private static bool GetName(Luid adapter, uint id, out TargetName name)
+    private static bool TryGetName(Luid adapter, uint id, out TargetNamePacket name)
     {
-        name = new TargetName { header = MakeHeader(DeviceInfoType.GetTargetName, adapter, id, Marshal.SizeOf<TargetName>()) };
+        name = new TargetNamePacket { header = MakeHeader(DeviceInfoType.GetTargetName, adapter, id, Marshal.SizeOf<TargetNamePacket>()) };
         return DisplayConfigGetDeviceInfo(ref name) == Ok;
     }
 
@@ -92,9 +92,9 @@ public sealed class HdrController
 
     [DllImport("user32.dll")] private static extern int GetDisplayConfigBufferSizes(uint flags, out uint paths, out uint modes);
     [DllImport("user32.dll")] private static extern int QueryDisplayConfig(uint flags, ref uint paths, [Out] PathInfo[] pathArray, ref uint modes, [Out] ModeInfo[] modeArray, IntPtr topology);
-    [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")] private static extern int DisplayConfigGetDeviceInfo(ref GetColor packet);
-    [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo", CharSet = CharSet.Unicode)] private static extern int DisplayConfigGetDeviceInfo(ref TargetName packet);
-    [DllImport("user32.dll", EntryPoint = "DisplayConfigSetDeviceInfo")] private static extern int DisplayConfigSetDeviceInfo(ref SetColor packet);
+    [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo")] private static extern int DisplayConfigGetDeviceInfo(ref GetColorPacket packet);
+    [DllImport("user32.dll", EntryPoint = "DisplayConfigGetDeviceInfo", CharSet = CharSet.Unicode)] private static extern int DisplayConfigGetDeviceInfo(ref TargetNamePacket packet);
+    [DllImport("user32.dll", EntryPoint = "DisplayConfigSetDeviceInfo")] private static extern int DisplayConfigSetDeviceInfo(ref SetColorPacket packet);
 
     [StructLayout(LayoutKind.Sequential)] private struct Luid { public uint LowPart; public int HighPart; }
     [StructLayout(LayoutKind.Sequential)] private struct PathInfo { public SourceInfo sourceInfo; public TargetInfo targetInfo; public uint flags; }
@@ -122,9 +122,9 @@ public sealed class HdrController
     [StructLayout(LayoutKind.Sequential)] private struct DesktopImageInfo { public PointL pathSourceSize; public RectL desktopImageRegion; public RectL desktopImageClip; }
 
     [StructLayout(LayoutKind.Sequential)] private struct Header { public DeviceInfoType type; public uint size; public Luid adapterId; public uint id; }
-    [StructLayout(LayoutKind.Sequential)] private struct GetColor { public Header header; public uint value; public uint colorEncoding; public uint bitsPerColorChannel; }
-    [StructLayout(LayoutKind.Sequential)] private struct SetColor { public Header header; public uint value; }
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] private struct TargetName
+    [StructLayout(LayoutKind.Sequential)] private struct GetColorPacket { public Header header; public uint value; public uint colorEncoding; public uint bitsPerColorChannel; }
+    [StructLayout(LayoutKind.Sequential)] private struct SetColorPacket { public Header header; public uint value; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] private struct TargetNamePacket
     {
         public Header header; public uint flags; public uint outputTechnology; public ushort edidManufactureId; public ushort edidProductCodeId; public uint connectorInstance;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string monitorFriendlyDeviceName;
