@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using SteamHdrGuard.Core;
 using Drawing = System.Drawing;
@@ -15,13 +17,15 @@ public partial class MainWindow : Window
     private readonly HdrController _hdr = new();
     private readonly Drawing.Icon _appIcon;
     private readonly Forms.NotifyIcon _trayIcon;
+    private readonly ImageSource _defaultGameIcon;
+    private readonly Dictionary<string, ImageSource> _gameIconCache = new(StringComparer.OrdinalIgnoreCase);
     private AppConfig _config;
     private CancellationTokenSource? _monitorCts;
     private Task? _monitorTask;
     private bool _loadingSettings;
     private bool _allowRealClose;
 
-    public ObservableCollection<GameEntry> Games { get; } = new();
+    public ObservableCollection<GameRow> Games { get; } = new();
     public ObservableCollection<DisplayInfo> Displays { get; } = new();
 
     public MainWindow()
@@ -29,7 +33,8 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _appIcon = CreateMinimalIcon();
-        Icon = Imaging.CreateBitmapSourceFromHIcon(_appIcon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromWidthAndHeight(32, 32));
+        Icon = CreateImageSourceFromIcon(_appIcon, 32);
+        _defaultGameIcon = CreateDefaultGameIconSource();
         _trayIcon = CreateTrayIcon(_appIcon);
 
         _config = ConfigStore.Load();
@@ -92,13 +97,13 @@ public partial class MainWindow : Window
         Games.Clear();
         foreach (var game in _config.Games.OrderBy(g => g.Name))
         {
-            Games.Add(game);
+            Games.Add(new GameRow(game, GetGameIcon(game)));
         }
     }
 
     private void PushGamesToConfig()
     {
-        _config.Games = Games.ToList();
+        _config.Games = Games.Select(g => g.Game).ToList();
     }
 
     private void RefreshDisplays()
@@ -187,6 +192,10 @@ public partial class MainWindow : Window
             {
                 Dispatcher.Invoke(() => AppendLog("监控异常：" + ex.Message));
             }
+            finally
+            {
+                monitor.EventRaised -= OnMonitorEvent;
+            }
         }, token);
 
         StartButton.IsEnabled = false;
@@ -203,6 +212,7 @@ public partial class MainWindow : Window
     private void StopMonitoring()
     {
         _monitorCts?.Cancel();
+        _monitorCts?.Dispose();
         _monitorCts = null;
         _monitorTask = null;
 
@@ -333,9 +343,132 @@ public partial class MainWindow : Window
         Close();
     }
 
-    private Drawing.Icon CreateMinimalIcon()
+    private ImageSource GetGameIcon(GameEntry game)
     {
-        var bitmap = new Drawing.Bitmap(64, 64);
+        if (string.IsNullOrWhiteSpace(game.AppId))
+        {
+            return _defaultGameIcon;
+        }
+
+        if (_gameIconCache.TryGetValue(game.AppId, out var cached))
+        {
+            return cached;
+        }
+
+        var icon = TryLoadAssociatedGameIcon(game) ?? _defaultGameIcon;
+        _gameIconCache[game.AppId] = icon;
+        return icon;
+    }
+
+    private ImageSource? TryLoadAssociatedGameIcon(GameEntry game)
+    {
+        foreach (string exe in FindCandidateExecutables(game).Take(8))
+        {
+            try
+            {
+                using Drawing.Icon? icon = Drawing.Icon.ExtractAssociatedIcon(exe);
+                if (icon is null) continue;
+                return CreateImageSourceFromIcon(icon, 18);
+            }
+            catch
+            {
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> FindCandidateExecutables(GameEntry game)
+    {
+        if (string.IsNullOrWhiteSpace(game.InstallPath) || !Directory.Exists(game.InstallPath))
+        {
+            yield break;
+        }
+
+        var found = new List<string>();
+        var queue = new Queue<(string Path, int Depth)>();
+        queue.Enqueue((game.InstallPath, 0));
+
+        while (queue.Count > 0 && found.Count < 64)
+        {
+            var current = queue.Dequeue();
+            foreach (string exe in SafeEnumerateFiles(current.Path, "*.exe"))
+            {
+                found.Add(exe);
+                if (found.Count >= 64) break;
+            }
+
+            if (current.Depth >= 3) continue;
+
+            foreach (string dir in SafeEnumerateDirectories(current.Path))
+            {
+                if (ShouldSkipIconDirectory(dir)) continue;
+                queue.Enqueue((dir, current.Depth + 1));
+            }
+        }
+
+        foreach (var item in found
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .Select(path => new { Path = path, Score = ScoreExecutable(path, game) })
+                     .OrderByDescending(x => x.Score)
+                     .ThenBy(x => x.Path.Length))
+        {
+            yield return item.Path;
+        }
+    }
+
+    private static int ScoreExecutable(string path, GameEntry game)
+    {
+        string file = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+        string install = game.InstallDir.ToLowerInvariant().Replace(" ", "");
+        string name = game.Name.ToLowerInvariant().Replace(" ", "");
+        string full = path.ToLowerInvariant();
+        int score = 0;
+
+        if (file.Replace(" ", "").Contains(install)) score += 40;
+        if (name.Length > 0 && file.Replace(" ", "").Contains(name)) score += 35;
+        if (string.Equals(Path.GetDirectoryName(path)?.TrimEnd('\\'), game.InstallPath.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) score += 15;
+        if (file.Contains("launcher")) score -= 6;
+        if (file.Contains("crash") || file.Contains("report")) score -= 25;
+        if (file.Contains("setup") || file.Contains("install") || file.Contains("unins")) score -= 40;
+        if (full.Contains("redist") || full.Contains("support") || full.Contains("installer")) score -= 20;
+
+        return score;
+    }
+
+    private static IEnumerable<string> SafeEnumerateFiles(string path, string pattern)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(path, pattern);
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static IEnumerable<string> SafeEnumerateDirectories(string path)
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(path);
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static bool ShouldSkipIconDirectory(string path)
+    {
+        string name = Path.GetFileName(path).ToLowerInvariant();
+        return name.Contains("redist") || name.Contains("installer") || name.Contains("support") || name.Contains("crash") || name is "_commonredist";
+    }
+
+    private static Drawing.Icon CreateMinimalIcon()
+    {
+        using var bitmap = new Drawing.Bitmap(64, 64);
         using var g = Drawing.Graphics.FromImage(bitmap);
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Drawing.Color.Transparent);
@@ -350,8 +483,51 @@ public partial class MainWindow : Window
         var format = new Drawing.StringFormat { Alignment = Drawing.StringAlignment.Center, LineAlignment = Drawing.StringAlignment.Center };
         g.DrawString("HDR", font, textBrush, new Drawing.RectangleF(5, 5, 54, 54), format);
 
-        return Drawing.Icon.FromHandle(bitmap.GetHicon());
+        IntPtr handle = bitmap.GetHicon();
+        try
+        {
+            return (Drawing.Icon)Drawing.Icon.FromHandle(handle).Clone();
+        }
+        finally
+        {
+            DestroyIcon(handle);
+        }
     }
+
+    private ImageSource CreateDefaultGameIconSource()
+    {
+        using var bitmap = new Drawing.Bitmap(32, 32);
+        using var g = Drawing.Graphics.FromImage(bitmap);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.Clear(Drawing.Color.Transparent);
+        using var bg = new Drawing.SolidBrush(Drawing.Color.FromArgb(245, 245, 247));
+        using var stroke = new Drawing.Pen(Drawing.Color.FromArgb(142, 142, 147), 1.6f);
+        using var dot = new Drawing.SolidBrush(Drawing.Color.FromArgb(142, 142, 147));
+        g.FillRectangle(bg, 6, 10, 20, 14);
+        g.DrawRectangle(stroke, 6, 10, 20, 14);
+        g.FillEllipse(dot, 10, 14, 4, 4);
+        g.FillEllipse(dot, 18, 14, 4, 4);
+        IntPtr handle = bitmap.GetHicon();
+        try
+        {
+            using var icon = (Drawing.Icon)Drawing.Icon.FromHandle(handle).Clone();
+            return CreateImageSourceFromIcon(icon, 18);
+        }
+        finally
+        {
+            DestroyIcon(handle);
+        }
+    }
+
+    private static ImageSource CreateImageSourceFromIcon(Drawing.Icon icon, int size)
+    {
+        var source = Imaging.CreateBitmapSourceFromHIcon(icon.Handle, Int32Rect.Empty, BitmapSizeOptions.FromWidthAndHeight(size, size));
+        source.Freeze();
+        return source;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     protected override void OnClosing(CancelEventArgs e)
     {
@@ -369,9 +545,38 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _monitorCts?.Cancel();
+        _monitorCts?.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _appIcon.Dispose();
         base.OnClosed(e);
     }
+}
+
+public sealed class GameRow : INotifyPropertyChanged
+{
+    public GameRow(GameEntry game, ImageSource icon)
+    {
+        Game = game;
+        Icon = icon;
+    }
+
+    public GameEntry Game { get; }
+    public ImageSource Icon { get; }
+    public string AppId => Game.AppId;
+    public string Name => Game.Name;
+    public string InstallPath => Game.InstallPath;
+
+    public bool HdrEnabled
+    {
+        get => Game.HdrEnabled;
+        set
+        {
+            if (Game.HdrEnabled == value) return;
+            Game.HdrEnabled = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HdrEnabled)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }
