@@ -119,7 +119,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel>
-                <TextBlock Text="Steam HDR Guard" FontSize="30" FontWeight="SemiBold" LetterSpacing="-0.5" />
+                <TextBlock Text="Steam HDR Guard" FontSize="30" FontWeight="SemiBold" />
                 <TextBlock x:Name="ConfigPathText" Style="{StaticResource MutedText}" Margin="1,6,0,0" />
             </StackPanel>
             <Border Grid.Column="1" Background="#111111" CornerRadius="18" Width="56" Height="56" HorizontalAlignment="Right">
