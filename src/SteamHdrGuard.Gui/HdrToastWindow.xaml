@@ -1,0 +1,38 @@
+<Window x:Class="SteamHdrGuard.Gui.HdrToastWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="240"
+        Height="76"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Topmost="True"
+        Focusable="False"
+        ShowActivated="False"
+        Opacity="0">
+    <Border Background="#E6111111"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            CornerRadius="22"
+            Padding="18,12"
+            SnapsToDevicePixels="True">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Width="34" Height="34" CornerRadius="17" BorderBrush="#FFFFFF" BorderThickness="1.5" VerticalAlignment="Center">
+                <TextBlock Text="HDR" Foreground="#FFFFFF" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+
+            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                <TextBlock x:Name="MessageText" Foreground="#FFFFFF" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="Steam HDR Guard" Foreground="#B3FFFFFF" FontSize="11" Margin="1,2,0,0" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
