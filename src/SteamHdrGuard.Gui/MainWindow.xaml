@@ -86,6 +86,13 @@
             <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
         </Style>
 
+        <Style TargetType="ComboBox">
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="BorderBrush" Value="{StaticResource Hairline}" />
+            <Setter Property="Background" Value="#FFFFFF" />
+        </Style>
+
         <Style TargetType="DataGrid">
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="#FFFFFF" />
@@ -187,6 +194,40 @@
                             <CheckBox x:Name="MinimizeToTrayCheckBox" Content="关闭窗口时最小化到托盘" />
                             <CheckBox x:Name="RestorePreviousCheckBox" Content="退出游戏后恢复原 HDR 状态" />
                             <TextBlock x:Name="SettingsStatusText" Style="{StaticResource MutedText}" Margin="0,10,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="HDR 状态提示" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="参考 InputTip 的轻量状态提示思路，切换 HDR 时显示短暂悬浮提示。" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,14" />
+                            <CheckBox x:Name="HdrToastEnabledCheckBox" Content="启用 HDR 切换提示" />
+
+                            <TextBlock Text="文案预设" Style="{StaticResource MutedText}" Margin="0,8,0,4" />
+                            <ComboBox x:Name="HdrToastPresetBox" SelectedValuePath="Tag" SelectionChanged="HdrToastPresetBox_SelectionChanged">
+                                <ComboBoxItem Content="简洁：HDR ON / HDR OFF" Tag="compact" />
+                                <ComboBoxItem Content="中文：HDR 已开启 / HDR 已关闭" Tag="chinese" />
+                                <ComboBoxItem Content="自定义" Tag="custom" />
+                            </ComboBox>
+
+                            <TextBlock Text="提示位置" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
+                            <ComboBox x:Name="HdrToastPositionBox" SelectedValuePath="Tag">
+                                <ComboBoxItem Content="顶部居中" Tag="top-center" />
+                                <ComboBoxItem Content="屏幕中央" Tag="center" />
+                                <ComboBoxItem Content="底部居中" Tag="bottom-center" />
+                                <ComboBoxItem Content="左上角" Tag="top-left" />
+                                <ComboBoxItem Content="右上角" Tag="top-right" />
+                                <ComboBoxItem Content="左下角" Tag="bottom-left" />
+                                <ComboBoxItem Content="右下角" Tag="bottom-right" />
+                            </ComboBox>
+
+                            <TextBlock Text="开启文案" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
+                            <TextBox x:Name="HdrToastOnTextBox" />
+                            <TextBlock Text="关闭文案" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
+                            <TextBox x:Name="HdrToastOffTextBox" />
+                            <TextBlock Text="显示时间（毫秒）" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
+                            <TextBox x:Name="HdrToastDurationBox" Width="96" HorizontalAlignment="Left" />
+                            <Button Content="测试提示" Style="{StaticResource AppleButton}" Margin="0,12,0,0" Click="TestToastButton_Click" />
                         </StackPanel>
                     </Border>
 
