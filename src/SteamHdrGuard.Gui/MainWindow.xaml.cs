@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -73,6 +74,12 @@ public partial class MainWindow : Window
         AutoStartMonitoringCheckBox.IsChecked = _config.StartMonitoringOnLaunch;
         MinimizeToTrayCheckBox.IsChecked = _config.MinimizeToTrayOnClose;
         RestorePreviousCheckBox.IsChecked = _config.RestorePreviousHdrState;
+        HdrToastEnabledCheckBox.IsChecked = _config.HdrToastEnabled;
+        SetComboValue(HdrToastPresetBox, _config.HdrToastPreset, "compact");
+        SetComboValue(HdrToastPositionBox, _config.HdrToastPosition, "top-center");
+        HdrToastOnTextBox.Text = string.IsNullOrWhiteSpace(_config.HdrOnToastText) ? "HDR ON" : _config.HdrOnToastText;
+        HdrToastOffTextBox.Text = string.IsNullOrWhiteSpace(_config.HdrOffToastText) ? "HDR OFF" : _config.HdrOffToastText;
+        HdrToastDurationBox.Text = Math.Clamp(_config.HdrToastDurationMs, 600, 6000).ToString();
         SettingsStatusText.Text = "设置已加载。";
         _loadingSettings = false;
     }
@@ -85,13 +92,28 @@ public partial class MainWindow : Window
             return false;
         }
 
+        if (!int.TryParse(HdrToastDurationBox.Text.Trim(), out int toastDuration))
+        {
+            SettingsStatusText.Text = "HDR 提示显示时间必须是数字。";
+            return false;
+        }
+
         exitDelay = Math.Clamp(exitDelay, 0, 3600);
+        toastDuration = Math.Clamp(toastDuration, 600, 6000);
         ExitDelayBox.Text = exitDelay.ToString();
+        HdrToastDurationBox.Text = toastDuration.ToString();
+
         _config.ExitDelaySeconds = exitDelay;
         _config.StartWithWindows = StartupCheckBox.IsChecked == true;
         _config.StartMonitoringOnLaunch = AutoStartMonitoringCheckBox.IsChecked == true;
         _config.MinimizeToTrayOnClose = MinimizeToTrayCheckBox.IsChecked == true;
         _config.RestorePreviousHdrState = RestorePreviousCheckBox.IsChecked == true;
+        _config.HdrToastEnabled = HdrToastEnabledCheckBox.IsChecked == true;
+        _config.HdrToastPreset = GetComboValue(HdrToastPresetBox, "compact");
+        _config.HdrToastPosition = GetComboValue(HdrToastPositionBox, "top-center");
+        _config.HdrOnToastText = string.IsNullOrWhiteSpace(HdrToastOnTextBox.Text) ? GetDefaultToastText(true, _config.HdrToastPreset) : HdrToastOnTextBox.Text.Trim();
+        _config.HdrOffToastText = string.IsNullOrWhiteSpace(HdrToastOffTextBox.Text) ? GetDefaultToastText(false, _config.HdrToastPreset) : HdrToastOffTextBox.Text.Trim();
+        _config.HdrToastDurationMs = toastDuration;
 
         if (persistStartup)
         {
@@ -235,8 +257,10 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (!ApplySettingsFromUi(persistStartup: false)) return;
             int count = _hdr.SetHdrForAllSupportedDisplays(true);
             AppendLog($"已开启 HDR，影响显示器数量：{count}");
+            ShowHdrToast(enabled: true);
             RefreshDisplays();
         }
         catch (Exception ex)
@@ -249,8 +273,10 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (!ApplySettingsFromUi(persistStartup: false)) return;
             int count = _hdr.SetHdrForAllSupportedDisplays(false);
             AppendLog($"已关闭 HDR，影响显示器数量：{count}");
+            ShowHdrToast(enabled: false);
             RefreshDisplays();
         }
         catch (Exception ex)
@@ -262,7 +288,7 @@ public partial class MainWindow : Window
     private void RefreshDisplaysButton_Click(object sender, RoutedEventArgs e)
     {
         RefreshDisplays();
-        AppendLog("显示器状态已刷新。");
+        AppendLog("显示器状态已刷新。 ");
     }
 
     private void StartupCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -284,6 +310,29 @@ public partial class MainWindow : Window
         }
     }
 
+    private void HdrToastPresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingSettings) return;
+
+        string preset = GetComboValue(HdrToastPresetBox, "compact");
+        if (preset == "compact")
+        {
+            HdrToastOnTextBox.Text = "HDR ON";
+            HdrToastOffTextBox.Text = "HDR OFF";
+        }
+        else if (preset == "chinese")
+        {
+            HdrToastOnTextBox.Text = "HDR 已开启";
+            HdrToastOffTextBox.Text = "HDR 已关闭";
+        }
+    }
+
+    private void TestToastButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!ApplySettingsFromUi(persistStartup: false)) return;
+        ShowHdrToast(enabled: true);
+    }
+
     private void OnMonitorEvent(MonitorEvent e)
     {
         Dispatcher.Invoke(() =>
@@ -291,6 +340,7 @@ public partial class MainWindow : Window
             AppendLog(e.ToString());
             if (e.Kind is MonitorEventKind.HdrEnabled or MonitorEventKind.HdrDisabled)
             {
+                ShowHdrToast(e.Kind == MonitorEventKind.HdrEnabled);
                 RefreshDisplays();
             }
         });
@@ -300,6 +350,42 @@ public partial class MainWindow : Window
     {
         LogBox.AppendText($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {text}{Environment.NewLine}");
         LogBox.ScrollToEnd();
+    }
+
+    private void ShowHdrToast(bool enabled)
+    {
+        if (!_config.HdrToastEnabled) return;
+        string text = enabled ? _config.HdrOnToastText : _config.HdrOffToastText;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            text = GetDefaultToastText(enabled, _config.HdrToastPreset);
+        }
+
+        HdrToastWindow.ShowToast(text, _config.HdrToastPosition, _config.HdrToastDurationMs);
+    }
+
+    private static string GetDefaultToastText(bool enabled, string preset)
+    {
+        if (string.Equals(preset, "chinese", StringComparison.OrdinalIgnoreCase))
+        {
+            return enabled ? "HDR 已开启" : "HDR 已关闭";
+        }
+
+        return enabled ? "HDR ON" : "HDR OFF";
+    }
+
+    private static string GetComboValue(ComboBox combo, string fallback)
+    {
+        return combo.SelectedValue as string ?? fallback;
+    }
+
+    private static void SetComboValue(ComboBox combo, string value, string fallback)
+    {
+        combo.SelectedValue = string.IsNullOrWhiteSpace(value) ? fallback : value;
+        if (combo.SelectedValue is null)
+        {
+            combo.SelectedValue = fallback;
+        }
     }
 
     private Forms.NotifyIcon CreateTrayIcon(Drawing.Icon icon)
