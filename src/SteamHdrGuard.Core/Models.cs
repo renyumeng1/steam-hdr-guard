@@ -8,6 +8,7 @@ public sealed class AppConfig
     public int ExitDelaySeconds { get; set; } = 30;
     public bool RestorePreviousHdrState { get; set; } = true;
     public bool StartWithWindows { get; set; } = false;
+    public bool StartMonitoringOnLaunch { get; set; } = true;
     public bool MinimizeToTrayOnClose { get; set; } = true;
     public List<GameEntry> Games { get; set; } = new();
 }
