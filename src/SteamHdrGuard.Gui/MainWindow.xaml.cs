@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, ImageSource> _gameIconCache = new(StringComparer.OrdinalIgnoreCase);
     private AppConfig _config;
     private CancellationTokenSource? _monitorCts;
+    private CancellationTokenSource? _toastDelayCts;
     private Task? _monitorTask;
     private bool _loadingSettings;
     private bool _allowRealClose;
@@ -79,6 +80,7 @@ public partial class MainWindow : Window
         SetComboValue(HdrToastPositionBox, _config.HdrToastPosition, "top-center");
         HdrToastOnTextBox.Text = string.IsNullOrWhiteSpace(_config.HdrOnToastText) ? "HDR ON" : _config.HdrOnToastText;
         HdrToastOffTextBox.Text = string.IsNullOrWhiteSpace(_config.HdrOffToastText) ? "HDR OFF" : _config.HdrOffToastText;
+        HdrToastDelayBox.Text = Math.Clamp(_config.HdrToastDelayMs, 0, 6000).ToString();
         HdrToastDurationBox.Text = Math.Clamp(_config.HdrToastDurationMs, 600, 6000).ToString();
         SettingsStatusText.Text = "设置已加载。";
         _loadingSettings = false;
@@ -92,6 +94,12 @@ public partial class MainWindow : Window
             return false;
         }
 
+        if (!int.TryParse(HdrToastDelayBox.Text.Trim(), out int toastDelay))
+        {
+            SettingsStatusText.Text = "HDR 提示亮屏延迟必须是数字。";
+            return false;
+        }
+
         if (!int.TryParse(HdrToastDurationBox.Text.Trim(), out int toastDuration))
         {
             SettingsStatusText.Text = "HDR 提示显示时间必须是数字。";
@@ -99,8 +107,10 @@ public partial class MainWindow : Window
         }
 
         exitDelay = Math.Clamp(exitDelay, 0, 3600);
+        toastDelay = Math.Clamp(toastDelay, 0, 6000);
         toastDuration = Math.Clamp(toastDuration, 600, 6000);
         ExitDelayBox.Text = exitDelay.ToString();
+        HdrToastDelayBox.Text = toastDelay.ToString();
         HdrToastDurationBox.Text = toastDuration.ToString();
 
         _config.ExitDelaySeconds = exitDelay;
@@ -113,6 +123,7 @@ public partial class MainWindow : Window
         _config.HdrToastPosition = GetComboValue(HdrToastPositionBox, "top-center");
         _config.HdrOnToastText = string.IsNullOrWhiteSpace(HdrToastOnTextBox.Text) ? GetDefaultToastText(true, _config.HdrToastPreset) : HdrToastOnTextBox.Text.Trim();
         _config.HdrOffToastText = string.IsNullOrWhiteSpace(HdrToastOffTextBox.Text) ? GetDefaultToastText(false, _config.HdrToastPreset) : HdrToastOffTextBox.Text.Trim();
+        _config.HdrToastDelayMs = toastDelay;
         _config.HdrToastDurationMs = toastDuration;
 
         if (persistStartup)
@@ -260,7 +271,7 @@ public partial class MainWindow : Window
             if (!ApplySettingsFromUi(persistStartup: false)) return;
             int count = _hdr.SetHdrForAllSupportedDisplays(true);
             AppendLog($"已开启 HDR，影响显示器数量：{count}");
-            ShowHdrToast(enabled: true);
+            QueueHdrToastAfterDisplaySettles(enabled: true);
             RefreshDisplays();
         }
         catch (Exception ex)
@@ -276,7 +287,7 @@ public partial class MainWindow : Window
             if (!ApplySettingsFromUi(persistStartup: false)) return;
             int count = _hdr.SetHdrForAllSupportedDisplays(false);
             AppendLog($"已关闭 HDR，影响显示器数量：{count}");
-            ShowHdrToast(enabled: false);
+            QueueHdrToastAfterDisplaySettles(enabled: false);
             RefreshDisplays();
         }
         catch (Exception ex)
@@ -330,7 +341,7 @@ public partial class MainWindow : Window
     private void TestToastButton_Click(object sender, RoutedEventArgs e)
     {
         if (!ApplySettingsFromUi(persistStartup: false)) return;
-        ShowHdrToast(enabled: true);
+        ShowHdrToastImmediately(enabled: true);
     }
 
     private void OnMonitorEvent(MonitorEvent e)
@@ -340,7 +351,7 @@ public partial class MainWindow : Window
             AppendLog(e.ToString());
             if (e.Kind is MonitorEventKind.HdrEnabled or MonitorEventKind.HdrDisabled)
             {
-                ShowHdrToast(e.Kind == MonitorEventKind.HdrEnabled);
+                QueueHdrToastAfterDisplaySettles(e.Kind == MonitorEventKind.HdrEnabled);
                 RefreshDisplays();
             }
         });
@@ -352,7 +363,35 @@ public partial class MainWindow : Window
         LogBox.ScrollToEnd();
     }
 
-    private void ShowHdrToast(bool enabled)
+    private void QueueHdrToastAfterDisplaySettles(bool enabled)
+    {
+        if (!_config.HdrToastEnabled) return;
+
+        _toastDelayCts?.Cancel();
+        _toastDelayCts?.Dispose();
+        _toastDelayCts = new CancellationTokenSource();
+        var token = _toastDelayCts.Token;
+        int delayMs = Math.Clamp(_config.HdrToastDelayMs, 0, 6000);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (delayMs > 0)
+                {
+                    await Task.Delay(delayMs, token);
+                }
+
+                if (token.IsCancellationRequested) return;
+                await Dispatcher.InvokeAsync(() => ShowHdrToastImmediately(enabled));
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, token);
+    }
+
+    private void ShowHdrToastImmediately(bool enabled)
     {
         if (!_config.HdrToastEnabled) return;
         string text = enabled ? _config.HdrOnToastText : _config.HdrOffToastText;
@@ -641,6 +680,8 @@ public partial class MainWindow : Window
     {
         _monitorCts?.Cancel();
         _monitorCts?.Dispose();
+        _toastDelayCts?.Cancel();
+        _toastDelayCts?.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _appIcon.Dispose();
