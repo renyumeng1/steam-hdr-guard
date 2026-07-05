@@ -87,7 +87,10 @@ public sealed class GameMonitor
 
     public GameProcessMatch? FindActiveGame(AppConfig config)
     {
-        var enabledGames = config.Games.Where(g => g.HdrEnabled && !string.IsNullOrWhiteSpace(g.InstallPath)).ToList();
+        var enabledGames = config.Games
+            .Where(g => g.HdrEnabled && !string.IsNullOrWhiteSpace(g.InstallPath))
+            .ToList();
+
         if (enabledGames.Count == 0)
         {
             return null;
@@ -95,33 +98,40 @@ public sealed class GameMonitor
 
         foreach (Process process in Process.GetProcesses())
         {
-            string exePath;
             try
             {
-                exePath = process.MainModule?.FileName ?? "";
-            }
-            catch
-            {
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(exePath))
-            {
-                continue;
-            }
-
-            foreach (GameEntry game in enabledGames)
-            {
-                if (IsPathUnder(exePath, game.InstallPath))
+                string exePath;
+                try
                 {
-                    return new GameProcessMatch
-                    {
-                        Game = game,
-                        ProcessId = process.Id,
-                        ProcessName = process.ProcessName,
-                        ExePath = exePath
-                    };
+                    exePath = process.MainModule?.FileName ?? "";
                 }
+                catch
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(exePath))
+                {
+                    continue;
+                }
+
+                foreach (GameEntry game in enabledGames)
+                {
+                    if (IsPathUnder(exePath, game.InstallPath))
+                    {
+                        return new GameProcessMatch
+                        {
+                            Game = game,
+                            ProcessId = process.Id,
+                            ProcessName = process.ProcessName,
+                            ExePath = exePath
+                        };
+                    }
+                }
+            }
+            finally
+            {
+                process.Dispose();
             }
         }
 
