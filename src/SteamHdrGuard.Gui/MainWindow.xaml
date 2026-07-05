@@ -3,20 +3,18 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Steam HDR Guard"
         Width="1120"
-        Height="760"
+        Height="780"
         MinWidth="960"
-        MinHeight="640"
+        MinHeight="620"
         Background="#F5F5F7"
         FontFamily="Segoe UI Variable, Segoe UI, Microsoft YaHei UI"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
-        <SolidColorBrush x:Key="PageBackground" Color="#F5F5F7" />
         <SolidColorBrush x:Key="CardBackground" Color="#FFFFFF" />
         <SolidColorBrush x:Key="PrimaryText" Color="#1D1D1F" />
         <SolidColorBrush x:Key="SecondaryText" Color="#6E6E73" />
         <SolidColorBrush x:Key="Hairline" Color="#E5E5EA" />
         <SolidColorBrush x:Key="Accent" Color="#007AFF" />
-        <SolidColorBrush x:Key="AccentDark" Color="#005ECF" />
 
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource CardBackground}" />
@@ -48,12 +46,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10"
-                                Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="10" Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -95,15 +88,48 @@
 
         <Style TargetType="DataGrid">
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="GridLinesVisibility" Value="Horizontal" />
-            <Setter Property="HorizontalGridLinesBrush" Value="#EFEFF4" />
-            <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="GridLinesVisibility" Value="None" />
             <Setter Property="RowBackground" Value="#FFFFFF" />
             <Setter Property="AlternatingRowBackground" Value="#FAFAFC" />
             <Setter Property="HeadersVisibility" Value="Column" />
             <Setter Property="CanUserResizeRows" Value="False" />
             <Setter Property="SelectionMode" Value="Single" />
             <Setter Property="FontSize" Value="13" />
+            <Setter Property="RowHeight" Value="34" />
+            <Setter Property="EnableRowVirtualization" Value="True" />
+            <Setter Property="EnableColumnVirtualization" Value="True" />
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryText}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,7" />
+            <Setter Property="BorderBrush" Value="#EFEFF4" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="BorderBrush" Value="#EFEFF4" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F5F9FF" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#EAF3FF" />
+                    <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
     </Window.Resources>
 
@@ -137,46 +163,45 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="控制" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock Text="安静地监控游戏，只在需要时切换 HDR。" Style="{StaticResource MutedText}" Margin="0,4,0,16" />
-                        <Button x:Name="StartButton" Content="开始监控" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" Click="StartButton_Click" />
-                        <Button x:Name="StopButton" Content="停止监控" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="StopButton_Click" IsEnabled="False" />
-                        <Button x:Name="ScanButton" Content="扫描 Steam 游戏" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="ScanButton_Click" />
-                        <Button x:Name="SaveButton" Content="保存配置" Style="{StaticResource AppleButton}" Margin="0" Click="SaveButton_Click" />
-                    </StackPanel>
-                </Border>
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,2,0">
+                <StackPanel>
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="控制" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="安静地监控游戏，只在需要时切换 HDR。" Style="{StaticResource MutedText}" Margin="0,4,0,16" />
+                            <Button x:Name="StartButton" Content="开始监控" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" Click="StartButton_Click" />
+                            <Button x:Name="StopButton" Content="停止监控" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="StopButton_Click" IsEnabled="False" />
+                            <Button x:Name="ScanButton" Content="扫描 Steam 游戏" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="ScanButton_Click" />
+                            <Button x:Name="SaveButton" Content="保存配置" Style="{StaticResource AppleButton}" Margin="0" Click="SaveButton_Click" />
+                        </StackPanel>
+                    </Border>
 
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="偏好设置" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock Text="这些设置会保存到本地配置。" Style="{StaticResource MutedText}" Margin="0,4,0,14" />
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="偏好设置" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="这些设置会保存到本地配置。" Style="{StaticResource MutedText}" Margin="0,4,0,14" />
+                            <TextBlock Text="游戏退出后关闭 HDR 延迟（秒）" Style="{StaticResource MutedText}" />
+                            <TextBox x:Name="ExitDelayBox" Width="96" HorizontalAlignment="Left" Margin="0,6,0,12" />
+                            <CheckBox x:Name="StartupCheckBox" Content="开机自启 GUI" Checked="StartupCheckBox_Changed" Unchecked="StartupCheckBox_Changed" />
+                            <CheckBox x:Name="MinimizeToTrayCheckBox" Content="关闭窗口时最小化到托盘" />
+                            <CheckBox x:Name="RestorePreviousCheckBox" Content="退出游戏后恢复原 HDR 状态" />
+                            <TextBlock x:Name="SettingsStatusText" Style="{StaticResource MutedText}" Margin="0,10,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
 
-                        <TextBlock Text="游戏退出后关闭 HDR 延迟（秒）" Style="{StaticResource MutedText}" />
-                        <TextBox x:Name="ExitDelayBox" Width="96" HorizontalAlignment="Left" Margin="0,6,0,12" />
-
-                        <CheckBox x:Name="StartupCheckBox" Content="开机自启 GUI" Checked="StartupCheckBox_Changed" Unchecked="StartupCheckBox_Changed" />
-                        <CheckBox x:Name="MinimizeToTrayCheckBox" Content="关闭窗口时最小化到托盘" />
-                        <CheckBox x:Name="RestorePreviousCheckBox" Content="退出游戏后恢复原 HDR 状态" />
-
-                        <TextBlock x:Name="SettingsStatusText" Style="{StaticResource MutedText}" Margin="0,10,0,0" TextWrapping="Wrap" />
-                    </StackPanel>
-                </Border>
-
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="HDR" FontSize="18" FontWeight="SemiBold" />
-                        <TextBlock Text="手动测试系统 HDR 开关。" Style="{StaticResource MutedText}" Margin="0,4,0,14" />
-                        <WrapPanel>
-                            <Button Content="HDR 开" Style="{StaticResource AppleButton}" Click="HdrOnButton_Click" />
-                            <Button Content="HDR 关" Style="{StaticResource AppleButton}" Click="HdrOffButton_Click" />
-                        </WrapPanel>
-                        <Button Content="刷新显示器" Style="{StaticResource AppleButton}" Margin="0,10,0,0" Click="RefreshDisplaysButton_Click" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="HDR" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="手动测试系统 HDR 开关。" Style="{StaticResource MutedText}" Margin="0,4,0,14" />
+                            <WrapPanel>
+                                <Button Content="HDR 开" Style="{StaticResource AppleButton}" Click="HdrOnButton_Click" />
+                                <Button Content="HDR 关" Style="{StaticResource AppleButton}" Click="HdrOffButton_Click" />
+                            </WrapPanel>
+                            <Button Content="刷新显示器" Style="{StaticResource AppleButton}" Margin="0,10,0,0" Click="RefreshDisplaysButton_Click" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
 
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
@@ -199,8 +224,17 @@
                         </StackPanel>
                         <DataGrid Grid.Row="1" x:Name="GamesGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False">
                             <DataGrid.Columns>
-                                <DataGridCheckBoxColumn Header="HDR" Binding="{Binding HdrEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="64" />
-                                <DataGridTextColumn Header="AppID" Binding="{Binding AppId}" IsReadOnly="True" Width="90" />
+                                <DataGridTemplateColumn Header="" Width="38" IsReadOnly="True">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Width="24" Height="24" CornerRadius="7" Background="#F2F2F7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Image Source="{Binding Icon}" Width="18" Height="18" Stretch="Uniform" SnapsToDevicePixels="True" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridCheckBoxColumn Header="HDR" Binding="{Binding HdrEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="58" />
+                                <DataGridTextColumn Header="AppID" Binding="{Binding AppId}" IsReadOnly="True" Width="88" />
                                 <DataGridTextColumn Header="游戏名称" Binding="{Binding Name}" IsReadOnly="True" Width="230" />
                                 <DataGridTextColumn Header="安装路径" Binding="{Binding InstallPath}" IsReadOnly="True" Width="*" />
                             </DataGrid.Columns>
