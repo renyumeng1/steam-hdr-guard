@@ -53,10 +53,11 @@ public static class SteamLibraryScanner
             if (existing.TryGetValue(game.AppId, out var old))
             {
                 bool changed = false;
-                changed |= UpdateString(ref old.Name, game.Name);
-                changed |= UpdateString(ref old.InstallDir, game.InstallDir);
-                changed |= UpdateString(ref old.InstallPath, game.InstallPath);
-                changed |= UpdateString(ref old.LibraryPath, game.LibraryPath);
+
+                if (!string.Equals(old.Name, game.Name, StringComparison.Ordinal)) { old.Name = game.Name; changed = true; }
+                if (!string.Equals(old.InstallDir, game.InstallDir, StringComparison.Ordinal)) { old.InstallDir = game.InstallDir; changed = true; }
+                if (!string.Equals(old.InstallPath, game.InstallPath, StringComparison.Ordinal)) { old.InstallPath = game.InstallPath; changed = true; }
+                if (!string.Equals(old.LibraryPath, game.LibraryPath, StringComparison.Ordinal)) { old.LibraryPath = game.LibraryPath; changed = true; }
 
                 if (string.IsNullOrWhiteSpace(old.MatchMode))
                 {
@@ -80,17 +81,6 @@ public static class SteamLibraryScanner
 
         config.Games = existing.Values.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         return (added, updated);
-    }
-
-    private static bool UpdateString(ref string current, string next)
-    {
-        if (string.Equals(current, next, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        current = next;
-        return true;
     }
 
     private static IEnumerable<string> DiscoverSteamRoots()
