@@ -200,7 +200,7 @@
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="HDR 状态提示" FontSize="18" FontWeight="SemiBold" />
-                            <TextBlock Text="参考 InputTip 的轻量状态提示思路，切换 HDR 时显示短暂悬浮提示。" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,14" />
+                            <TextBlock Text="切换 HDR 后等待屏幕重新亮起，再显示短暂悬浮提示。" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,14" />
                             <CheckBox x:Name="HdrToastEnabledCheckBox" Content="启用 HDR 切换提示" />
 
                             <TextBlock Text="文案预设" Style="{StaticResource MutedText}" Margin="0,8,0,4" />
@@ -225,6 +225,8 @@
                             <TextBox x:Name="HdrToastOnTextBox" />
                             <TextBlock Text="关闭文案" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
                             <TextBox x:Name="HdrToastOffTextBox" />
+                            <TextBlock Text="切换后等待亮屏延迟（毫秒）" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
+                            <TextBox x:Name="HdrToastDelayBox" Width="96" HorizontalAlignment="Left" />
                             <TextBlock Text="显示时间（毫秒）" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
                             <TextBox x:Name="HdrToastDurationBox" Width="96" HorizontalAlignment="Left" />
                             <Button Content="测试提示" Style="{StaticResource AppleButton}" Margin="0,12,0,0" Click="TestToastButton_Click" />
