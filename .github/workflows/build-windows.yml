@@ -1,0 +1,73 @@
+name: Build Windows Package
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build win-x64 package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore CLI
+        run: dotnet restore .\src\SteamHdrGuard.Cli\SteamHdrGuard.Cli.csproj
+
+      - name: Restore GUI
+        run: dotnet restore .\src\SteamHdrGuard.Gui\SteamHdrGuard.Gui.csproj
+
+      - name: Publish CLI
+        run: dotnet publish .\src\SteamHdrGuard.Cli\SteamHdrGuard.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o .\artifacts\package\cli
+
+      - name: Publish GUI
+        run: dotnet publish .\src\SteamHdrGuard.Gui\SteamHdrGuard.Gui.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o .\artifacts\package\gui
+
+      - name: Add docs
+        shell: pwsh
+        run: |
+          Copy-Item .\README.md .\artifacts\package\README.md
+          Copy-Item .\scripts .\artifacts\package\scripts -Recurse
+          @'
+          Steam HDR Guard Windows Package
+
+          GUI:
+            gui\SteamHdrGuard.Gui.exe
+
+          CLI:
+            cli\steam-hdr-guard.exe
+
+          First steps:
+            1. Run gui\SteamHdrGuard.Gui.exe
+            2. Click 扫描 Steam 游戏
+            3. Tick games that should enable HDR automatically
+            4. Click 开始监控
+
+          CLI examples:
+            cli\steam-hdr-guard.exe scan
+            cli\steam-hdr-guard.exe list
+            cli\steam-hdr-guard.exe hdr status
+            cli\steam-hdr-guard.exe watch
+          '@ | Set-Content .\artifacts\package\使用说明.txt -Encoding UTF8
+
+      - name: Create zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .\artifacts\zip | Out-Null
+          Compress-Archive -Path .\artifacts\package\* -DestinationPath .\artifacts\zip\steam-hdr-guard-win-x64.zip -Force
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: steam-hdr-guard-win-x64
+          path: .\artifacts\zip\steam-hdr-guard-win-x64.zip
+          if-no-files-found: error
