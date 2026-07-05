@@ -1,0 +1,117 @@
+name: Build Windows Package Diagnostic
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    name: Build win-x64 package with diagnostics
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build and package
+        id: build
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          New-Item -ItemType Directory -Force .\artifacts\logs | Out-Null
+          $log = ".\artifacts\logs\build.log"
+          "Steam HDR Guard diagnostic build" | Tee-Object -FilePath $log
+          "Commit: $env:GITHUB_SHA" | Tee-Object -FilePath $log -Append
+          "" | Tee-Object -FilePath $log -Append
+
+          dotnet --info 2>&1 | Tee-Object -FilePath $log -Append
+          "" | Tee-Object -FilePath $log -Append
+
+          dotnet restore .\src\SteamHdrGuard.Cli\SteamHdrGuard.Cli.csproj 2>&1 | Tee-Object -FilePath $log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          dotnet restore .\src\SteamHdrGuard.Gui\SteamHdrGuard.Gui.csproj 2>&1 | Tee-Object -FilePath $log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          dotnet publish .\src\SteamHdrGuard.Cli\SteamHdrGuard.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o .\artifacts\package\cli 2>&1 | Tee-Object -FilePath $log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          dotnet publish .\src\SteamHdrGuard.Gui\SteamHdrGuard.Gui.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o .\artifacts\package\gui 2>&1 | Tee-Object -FilePath $log -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Copy-Item .\README.md .\artifacts\package\README.md
+          Copy-Item .\scripts .\artifacts\package\scripts -Recurse
+          @'
+          Steam HDR Guard Windows Package
+
+          GUI:
+            gui\SteamHdrGuard.Gui.exe
+
+          CLI:
+            cli\steam-hdr-guard.exe
+          '@ | Set-Content .\artifacts\package\使用说明.txt -Encoding UTF8
+
+          New-Item -ItemType Directory -Force .\artifacts\zip | Out-Null
+          Compress-Archive -Path .\artifacts\package\* -DestinationPath .\artifacts\zip\steam-hdr-guard-win-x64.zip -Force
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steam-hdr-guard-build-logs
+          path: .\artifacts\logs\build.log
+          if-no-files-found: warn
+
+      - name: Upload package
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: steam-hdr-guard-win-x64
+          path: .\artifacts\zip\steam-hdr-guard-win-x64.zip
+          if-no-files-found: error
+
+      - name: Create issue on failure
+        if: steps.build.outcome == 'failure'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $logPath = ".\artifacts\logs\build.log"
+          $log = "build.log not found"
+          if (Test-Path $logPath) {
+            $log = Get-Content $logPath -Raw
+          }
+          if ($log.Length -gt 55000) {
+            $log = $log.Substring($log.Length - 55000)
+          }
+          $body = @"
+          Diagnostic build failed.
+
+          Commit: $env:GITHUB_SHA
+          Run: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+
+          ``````text
+          $log
+          ``````
+          "@
+          gh issue create --title "Build failed: $env:GITHUB_SHA" --body $body --label build-failure
+
+      - name: Fail job when build failed
+        if: steps.build.outcome == 'failure'
+        shell: pwsh
+        run: exit 1
