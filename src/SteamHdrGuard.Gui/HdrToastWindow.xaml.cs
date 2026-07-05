@@ -33,15 +33,17 @@ public partial class HdrToastWindow : Window
         Application.Current.Dispatcher.Invoke(() =>
         {
             _current?.CloseImmediately();
-            _current = new HdrToastWindow(message, position, durationMs);
-            _current.Closed += (_, _) =>
+
+            var toast = new HdrToastWindow(message, position, durationMs);
+            _current = toast;
+            toast.Closed += (_, _) =>
             {
-                if (ReferenceEquals(_current, null) || ReferenceEquals(_current, Application.Current.Windows.OfType<HdrToastWindow>().FirstOrDefault()))
+                if (ReferenceEquals(_current, toast))
                 {
                     _current = null;
                 }
             };
-            _current.Show();
+            toast.Show();
         });
     }
 
