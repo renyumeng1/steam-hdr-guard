@@ -50,9 +50,15 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) =>
         {
-            if (Environment.GetCommandLineArgs().Any(x => x.Equals("--start-minimized", StringComparison.OrdinalIgnoreCase)))
+            bool startMinimized = Environment.GetCommandLineArgs().Any(x => x.Equals("--start-minimized", StringComparison.OrdinalIgnoreCase));
+
+            if (_config.StartMonitoringOnLaunch)
             {
                 StartMonitoring();
+            }
+
+            if (startMinimized)
+            {
                 HideToTray(showTip: false);
             }
         };
@@ -63,6 +69,7 @@ public partial class MainWindow : Window
         _loadingSettings = true;
         ExitDelayBox.Text = Math.Max(0, _config.ExitDelaySeconds).ToString();
         StartupCheckBox.IsChecked = StartupManager.IsEnabled();
+        AutoStartMonitoringCheckBox.IsChecked = _config.StartMonitoringOnLaunch;
         MinimizeToTrayCheckBox.IsChecked = _config.MinimizeToTrayOnClose;
         RestorePreviousCheckBox.IsChecked = _config.RestorePreviousHdrState;
         SettingsStatusText.Text = "设置已加载。";
@@ -81,6 +88,7 @@ public partial class MainWindow : Window
         ExitDelayBox.Text = exitDelay.ToString();
         _config.ExitDelaySeconds = exitDelay;
         _config.StartWithWindows = StartupCheckBox.IsChecked == true;
+        _config.StartMonitoringOnLaunch = AutoStartMonitoringCheckBox.IsChecked == true;
         _config.MinimizeToTrayOnClose = MinimizeToTrayCheckBox.IsChecked == true;
         _config.RestorePreviousHdrState = RestorePreviousCheckBox.IsChecked == true;
 
