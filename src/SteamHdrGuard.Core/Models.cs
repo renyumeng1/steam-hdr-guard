@@ -7,6 +7,8 @@ public sealed class AppConfig
     public int PollIntervalSeconds { get; set; } = 3;
     public int ExitDelaySeconds { get; set; } = 30;
     public bool RestorePreviousHdrState { get; set; } = true;
+    public bool StartWithWindows { get; set; } = false;
+    public bool MinimizeToTrayOnClose { get; set; } = true;
     public List<GameEntry> Games { get; set; } = new();
 }
 
