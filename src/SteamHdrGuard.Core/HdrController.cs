@@ -83,8 +83,8 @@ public sealed class HdrController
     {
         int status = GetDisplayConfigBufferSizes(QdcOnlyActive, out uint pc, out uint mc);
         if (status != Ok) throw new InvalidOperationException($"GetDisplayConfigBufferSizes failed: {status}");
-        var paths = new PathInfo[pc];
-        var modes = new ModeInfo[mc];
+        var paths = new PathInfo[(int)pc];
+        var modes = new ModeInfo[(int)mc];
         status = QueryDisplayConfig(QdcOnlyActive, ref pc, paths, ref mc, modes, IntPtr.Zero);
         if (status != Ok) throw new InvalidOperationException($"QueryDisplayConfig failed: {status}");
         return paths.Take((int)pc).ToArray();
