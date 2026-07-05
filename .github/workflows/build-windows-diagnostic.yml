@@ -57,7 +57,7 @@ jobs:
           Copy-Item .\README.md .\artifacts\package\README.md
           Copy-Item .\scripts .\artifacts\package\scripts -Recurse
           @'
-          Steam HDR Guard Windows Package
+          Steam HDR Guard Diagnostic Package
 
           GUI:
             gui\SteamHdrGuard.Gui.exe
@@ -67,7 +67,7 @@ jobs:
           '@ | Set-Content .\artifacts\package\使用说明.txt -Encoding UTF8
 
           New-Item -ItemType Directory -Force .\artifacts\zip | Out-Null
-          Compress-Archive -Path .\artifacts\package\* -DestinationPath .\artifacts\zip\steam-hdr-guard-win-x64.zip -Force
+          Compress-Archive -Path .\artifacts\package\* -DestinationPath .\artifacts\zip\steam-hdr-guard-diagnostic-win-x64.zip -Force
 
       - name: Upload diagnostic logs
         if: always()
@@ -77,12 +77,12 @@ jobs:
           path: .\artifacts\logs\build.log
           if-no-files-found: warn
 
-      - name: Upload package
+      - name: Upload diagnostic package
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: steam-hdr-guard-win-x64
-          path: .\artifacts\zip\steam-hdr-guard-win-x64.zip
+          name: steam-hdr-guard-diagnostic-win-x64
+          path: .\artifacts\zip\steam-hdr-guard-diagnostic-win-x64.zip
           if-no-files-found: error
 
       - name: Create issue on failure
@@ -109,7 +109,7 @@ jobs:
           $log
           ``````
           "@
-          gh issue create --title "Build failed: $env:GITHUB_SHA" --body $body --label build-failure
+          gh issue create --title "Build failed: $env:GITHUB_SHA" --body $body
 
       - name: Fail job when build failed
         if: steps.build.outcome == 'failure'
