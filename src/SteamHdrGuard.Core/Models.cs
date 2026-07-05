@@ -15,6 +15,7 @@ public sealed class AppConfig
     public string HdrToastPreset { get; set; } = "compact";
     public string HdrOnToastText { get; set; } = "HDR ON";
     public string HdrOffToastText { get; set; } = "HDR OFF";
+    public int HdrToastDelayMs { get; set; } = 1800;
     public int HdrToastDurationMs { get; set; } = 1400;
     public List<GameEntry> Games { get; set; } = new();
 }
