@@ -171,14 +171,101 @@ public partial class MainWindow : Window
             if (!ApplySettingsFromUi()) return;
             PushGamesToConfig();
             var (added, updated) = SteamLibraryScanner.MergeIntoConfig(_config);
+            var (localAdded, localUpdated) = InstalledGameScanner.MergeIntoConfig(_config);
             ConfigStore.Save(_config);
             LoadGamesFromConfig();
-            AppendLog($"扫描完成：新增 {added} 个，更新 {updated} 个，总计 {_config.Games.Count} 个。");
+            AppendLog($"扫描完成：Steam 新增 {added}、更新 {updated}；其他游戏新增 {localAdded}、更新 {localUpdated}；总计 {_config.Games.Count} 个。");
         }
         catch (Exception ex)
         {
             AppendLog("扫描失败：" + ex.Message);
         }
+    }
+
+    private void AddGameButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "选择游戏程序",
+            Filter = "程序|*.exe",
+            CheckFileExists = true
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        if (InstalledGameScanner.LooksLikeLauncher(dialog.FileName))
+        {
+            MessageBoxResult answer = MessageBox.Show(
+                this,
+                "这个更像启动器。启动器一直开着的话，退出游戏后 HDR 也不会关。请改选游戏本体。仍然添加吗？",
+                "确认游戏程序",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (answer != MessageBoxResult.Yes)
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            if (!ApplySettingsFromUi()) return;
+            PushGamesToConfig();
+            GameEntry entry = InstalledGameScanner.CreateManual(dialog.FileName);
+            GameEntry? existing = _config.Games.FirstOrDefault(game =>
+                GameMatcher.IsCustom(game) &&
+                (GameMatcher.ProcessNamesEqual(game.ProcessName, entry.ProcessName) ||
+                 GameMatcher.PathsEqual(game.ExePath, entry.ExePath)));
+
+            if (existing is null)
+            {
+                _config.Games.Add(entry);
+            }
+            else
+            {
+                existing.Name = entry.Name;
+                existing.ExePath = entry.ExePath;
+                existing.ProcessName = entry.ProcessName;
+                existing.InstallPath = entry.InstallPath;
+                existing.InstallDir = entry.InstallDir;
+                existing.MatchMode = entry.MatchMode;
+                existing.HdrEnabled = true;
+            }
+
+            ConfigStore.Save(_config);
+            LoadGamesFromConfig();
+            AppendLog($"已添加 {entry.Name}。启动 {entry.ProcessName}.exe 时会开 HDR，启动器不算。");
+        }
+        catch (Exception ex)
+        {
+            AppendLog("添加失败：" + ex.Message);
+        }
+    }
+
+    private void RemoveGameButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (GamesGrid.SelectedItem is not GameRow row)
+        {
+            AppendLog("先选中要移除的游戏。");
+            return;
+        }
+
+        if (!GameMatcher.IsCustom(row.Game))
+        {
+            row.HdrEnabled = false;
+            PushGamesToConfig();
+            ConfigStore.Save(_config);
+            AppendLog($"{row.Name} 会留在 Steam 列表里，已取消勾选。");
+            return;
+        }
+
+        Games.Remove(row);
+        PushGamesToConfig();
+        ConfigStore.Save(_config);
+        AppendLog($"已移除 {row.Name}。如果它还装在电脑上，下次扫描会重新出现；不想自动开 HDR，取消勾选即可。");
     }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -496,6 +583,21 @@ public partial class MainWindow : Window
 
     private ImageSource? TryLoadAssociatedGameIcon(GameEntry game)
     {
+        if (!string.IsNullOrWhiteSpace(game.ExePath) && File.Exists(game.ExePath))
+        {
+            try
+            {
+                using Drawing.Icon? icon = Drawing.Icon.ExtractAssociatedIcon(game.ExePath);
+                if (icon is not null)
+                {
+                    return CreateImageSourceFromIcon(icon, 18);
+                }
+            }
+            catch
+            {
+            }
+        }
+
         foreach (string exe in FindCandidateExecutables(game).Take(8))
         {
             try
@@ -702,6 +804,8 @@ public sealed class GameRow : INotifyPropertyChanged
     public string AppId => Game.AppId;
     public string Name => Game.Name;
     public string InstallPath => Game.InstallPath;
+    public string Source => GameMatcher.IsCustom(Game) ? "本机" : "Steam";
+    public string Location => GameMatcher.IsCustom(Game) && !string.IsNullOrWhiteSpace(Game.ExePath) ? Game.ExePath : Game.InstallPath;
 
     public bool HdrEnabled
     {

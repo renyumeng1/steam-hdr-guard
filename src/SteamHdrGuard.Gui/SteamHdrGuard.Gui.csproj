@@ -16,6 +16,6 @@
 
   <Target Name="GenerateAppIcon" BeforeTargets="PrepareForBuild">
     <MakeDir Directories="Assets" />
-    <Exec Command="pwsh -File &quot;$(MSBuildProjectDirectory)\Assets\generate-app-icon.ps1&quot;" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\Assets\generate-app-icon.ps1&quot;" />
   </Target>
 </Project>

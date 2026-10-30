@@ -29,6 +29,8 @@ public sealed class GameEntry
     public string LibraryPath { get; set; } = "";
     public bool HdrEnabled { get; set; } = true;
     public string MatchMode { get; set; } = "path-under-install-dir";
+    public string ExePath { get; set; } = "";
+    public string ProcessName { get; set; } = "";
 }
 
 public sealed class DisplayInfo

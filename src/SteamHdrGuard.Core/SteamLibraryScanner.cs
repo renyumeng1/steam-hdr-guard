@@ -79,7 +79,16 @@ public static class SteamLibraryScanner
             }
         }
 
-        config.Games = existing.Values.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+        var merged = existing.Values.ToList();
+        foreach (GameEntry custom in config.Games.Where(GameMatcher.IsCustom))
+        {
+            if (merged.All(game => !string.Equals(game.AppId, custom.AppId, StringComparison.OrdinalIgnoreCase)))
+            {
+                merged.Add(custom);
+            }
+        }
+
+        config.Games = merged.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
         return (added, updated);
     }
 

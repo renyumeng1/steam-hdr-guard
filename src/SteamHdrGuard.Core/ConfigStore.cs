@@ -14,6 +14,12 @@ public static class ConfigStore
 
     public static string GetDefaultConfigPath()
     {
+        string? overridePath = Environment.GetEnvironmentVariable("STEAM_HDR_GUARD_CONFIG");
+        if (!string.IsNullOrWhiteSpace(overridePath))
+        {
+            return overridePath;
+        }
+
         string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         return Path.Combine(appData, "SteamHdrGuard", "config.json");
     }
@@ -31,6 +37,18 @@ public static class ConfigStore
         string json = File.ReadAllText(path);
         var loaded = JsonSerializer.Deserialize<AppConfig>(json, Options) ?? new AppConfig();
         loaded.Games ??= new List<GameEntry>();
+        foreach (GameEntry game in loaded.Games)
+        {
+            game.AppId ??= "";
+            game.Name ??= "";
+            game.InstallDir ??= "";
+            game.InstallPath ??= "";
+            game.LibraryPath ??= "";
+            game.MatchMode ??= "";
+            game.ExePath ??= "";
+            game.ProcessName ??= "";
+        }
+
         return loaded;
     }
 

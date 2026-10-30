@@ -48,9 +48,10 @@ internal static class Program
     {
         var config = ConfigStore.Load();
         var (added, updated) = SteamLibraryScanner.MergeIntoConfig(config);
+        var (localAdded, localUpdated) = InstalledGameScanner.MergeIntoConfig(config);
         ConfigStore.Save(config);
         int enabled = config.Games.Count(g => g.HdrEnabled);
-        Console.WriteLine($"扫描完成：总计 {config.Games.Count} 个游戏，新增 {added} 个，更新 {updated} 个，HDR 监控启用 {enabled} 个。");
+        Console.WriteLine($"扫描完成：总计 {config.Games.Count} 个游戏，Steam 新增 {added}、更新 {updated}，其他游戏新增 {localAdded}、更新 {localUpdated}，HDR 监控启用 {enabled} 个。");
         Console.WriteLine($"配置文件：{ConfigStore.GetDefaultConfigPath()}");
         return 0;
     }
@@ -66,7 +67,9 @@ internal static class Program
         foreach (var game in config.Games)
         {
             string mark = game.HdrEnabled ? "ON " : "OFF";
-            Console.WriteLine($"[{mark}] {game.AppId,10}  {game.Name}");
+            string source = GameMatcher.IsCustom(game) ? "本机" : "Steam";
+            string where = GameMatcher.IsCustom(game) && !string.IsNullOrWhiteSpace(game.ExePath) ? game.ExePath : game.AppId;
+            Console.WriteLine($"[{mark}] {source,-4}  {game.Name}  {where}");
         }
         return 0;
     }
@@ -150,10 +153,11 @@ internal static class Program
         if (config.ScanOnStart)
         {
             var (added, updated) = SteamLibraryScanner.MergeIntoConfig(config);
-            if (added > 0 || updated > 0)
+            var (localAdded, localUpdated) = InstalledGameScanner.MergeIntoConfig(config);
+            if (added > 0 || updated > 0 || localAdded > 0 || localUpdated > 0)
             {
                 ConfigStore.Save(config);
-                Console.WriteLine($"启动扫描完成：新增 {added} 个，更新 {updated} 个。");
+                Console.WriteLine($"启动扫描完成：Steam 新增 {added}、更新 {updated}，其他游戏新增 {localAdded}、更新 {localUpdated}。");
             }
         }
         using var cts = new CancellationTokenSource();

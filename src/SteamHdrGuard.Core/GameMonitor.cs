@@ -15,7 +15,7 @@ public sealed class GameMonitor
 
     public async Task RunAsync(AppConfig config, CancellationToken cancellationToken)
     {
-        Raise(MonitorEventKind.Started, "开始监控 Steam 游戏进程。");
+        Raise(MonitorEventKind.Started, "开始监控游戏进程。");
 
         bool initialHdrState = SafeGetHdrState();
         bool changedByThisProcess = false;
@@ -87,10 +87,7 @@ public sealed class GameMonitor
 
     public GameProcessMatch? FindActiveGame(AppConfig config)
     {
-        var enabledGames = config.Games
-            .Where(g => g.HdrEnabled && !string.IsNullOrWhiteSpace(g.InstallPath))
-            .ToList();
-
+        var enabledGames = config.Games.Where(GameMatcher.CanMonitor).ToList();
         if (enabledGames.Count == 0)
         {
             return null;
@@ -100,34 +97,41 @@ public sealed class GameMonitor
         {
             try
             {
-                string exePath;
+                string processName = process.ProcessName;
+                string exePath = "";
                 try
                 {
                     exePath = process.MainModule?.FileName ?? "";
                 }
                 catch
                 {
-                    continue;
+                    exePath = "";
                 }
 
-                if (string.IsNullOrWhiteSpace(exePath))
-                {
-                    continue;
-                }
-
+                GameEntry? best = null;
+                int bestScore = 0;
                 foreach (GameEntry game in enabledGames)
                 {
-                    if (IsPathUnder(exePath, game.InstallPath))
+                    int score = GameMatcher.Score(game, exePath, processName);
+                    if (score > bestScore)
                     {
-                        return new GameProcessMatch
-                        {
-                            Game = game,
-                            ProcessId = process.Id,
-                            ProcessName = process.ProcessName,
-                            ExePath = exePath
-                        };
+                        best = game;
+                        bestScore = score;
                     }
                 }
+
+                if (best is null)
+                {
+                    continue;
+                }
+
+                return new GameProcessMatch
+                {
+                    Game = best,
+                    ProcessId = process.Id,
+                    ProcessName = processName,
+                    ExePath = exePath
+                };
             }
             finally
             {
@@ -162,19 +166,4 @@ public sealed class GameMonitor
         EventRaised?.Invoke(new MonitorEvent { Kind = kind, Message = message, Match = match });
     }
 
-    private static bool IsPathUnder(string childPath, string parentPath)
-    {
-        try
-        {
-            string child = Path.GetFullPath(childPath).TrimEnd('\\', '/');
-            string parent = Path.GetFullPath(parentPath).TrimEnd('\\', '/');
-            return child.Equals(parent, StringComparison.OrdinalIgnoreCase) ||
-                   child.StartsWith(parent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                   child.StartsWith(parent + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return false;
-        }
-    }
 }

@@ -178,7 +178,9 @@
                             <TextBlock Text="安静地监控游戏，只在需要时切换 HDR。" Style="{StaticResource MutedText}" Margin="0,4,0,16" />
                             <Button x:Name="StartButton" Content="开始监控" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" Click="StartButton_Click" />
                             <Button x:Name="StopButton" Content="停止监控" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="StopButton_Click" IsEnabled="False" />
-                            <Button x:Name="ScanButton" Content="扫描 Steam 游戏" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="ScanButton_Click" />
+                            <Button x:Name="ScanButton" Content="扫描已安装游戏" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="ScanButton_Click" />
+                            <Button x:Name="AddGameButton" Content="添加其他游戏" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="AddGameButton_Click" />
+                            <Button x:Name="RemoveGameButton" Content="移除所选游戏" Style="{StaticResource AppleButton}" Margin="0,0,0,8" Click="RemoveGameButton_Click" />
                             <Button x:Name="SaveButton" Content="保存配置" Style="{StaticResource AppleButton}" Margin="0" Click="SaveButton_Click" />
                         </StackPanel>
                     </Border>
@@ -263,8 +265,8 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <StackPanel Margin="0,0,0,12">
-                            <TextBlock Text="Steam 游戏" FontSize="18" FontWeight="SemiBold" />
-                            <TextBlock Text="勾选需要启动时自动开启 HDR 的游戏。" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+                            <TextBlock Text="游戏" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="扫描会带上 Steam 和其他平台已经安装的游戏。勾选后，游戏本体启动时自动开启 HDR；启动器还开着也不会一直占着 HDR。" Style="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
                         </StackPanel>
                         <DataGrid Grid.Row="1" x:Name="GamesGrid" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False">
                             <DataGrid.Columns>
@@ -278,9 +280,9 @@
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridCheckBoxColumn Header="HDR" Binding="{Binding HdrEnabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="58" />
-                                <DataGridTextColumn Header="AppID" Binding="{Binding AppId}" IsReadOnly="True" Width="88" />
-                                <DataGridTextColumn Header="游戏名称" Binding="{Binding Name}" IsReadOnly="True" Width="230" />
-                                <DataGridTextColumn Header="安装路径" Binding="{Binding InstallPath}" IsReadOnly="True" Width="*" />
+                                <DataGridTextColumn Header="来源" Binding="{Binding Source}" IsReadOnly="True" Width="72" />
+                                <DataGridTextColumn Header="游戏名称" Binding="{Binding Name}" IsReadOnly="True" Width="180" />
+                                <DataGridTextColumn Header="位置" Binding="{Binding Location}" IsReadOnly="True" Width="*" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
